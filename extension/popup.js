@@ -2,6 +2,14 @@
 // Copyright (c) 2025 @thejjw
 
 // Popup script for Cache Killer extension
+const DEBUG = true; // Set to false to disable debug logs
+
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log('[Cache Killer Popup Debug]', ...args);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const toggleSwitch = document.getElementById('toggleSwitch');
   const status = document.getElementById('status');
@@ -31,6 +39,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isEnabled = result.cacheKillerEnabled || false;
   const mode = result.cacheKillerMode || 'all';
   const urls = result.cacheKillerUrls || [];
+  
+  debugLog('Popup loaded with state:', { isEnabled, mode, urls });
   
   // Update UI
   toggleSwitch.checked = isEnabled;
@@ -125,16 +135,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Get current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.url) {
+        debugLog('No active tab or URL found');
         pageStatus.textContent = 'Cannot determine page status';
         pageStatus.className = 'page-status inactive';
         return;
       }
+      
+      debugLog('Checking page status for tab:', tab.url);
       
       // Ask background script about current page status
       const response = await chrome.runtime.sendMessage({
         action: 'checkPageStatus',
         url: tab.url
       });
+      
+      debugLog('Received response from background:', response);
       
       if (response.isActive) {
         pageStatus.textContent = 'Cache killer is active on this page';
@@ -155,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         pageStatus.className = 'page-status inactive';
       }
     } catch (error) {
-      console.error('Error checking page status:', error);
+      debugLog('Error checking page status:', error);
       pageStatus.textContent = 'Cannot determine page status';
       pageStatus.className = 'page-status inactive';
     }

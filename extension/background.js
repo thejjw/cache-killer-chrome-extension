@@ -2,6 +2,8 @@
 // Copyright (c) 2025 @thejjw
 
 // Background script for Cache Killer extension
+const DEBUG = true; // Set to false to disable debug logs
+
 let isEnabled = false;
 let mode = 'all';
 let urls = [];
@@ -9,8 +11,15 @@ let urls = [];
 // Rule ID for declarativeNetRequest
 const CACHE_KILLER_RULE_ID = 1;
 
+function debugLog(...args) {
+  if (DEBUG) {
+    console.log('[Cache Killer Debug]', ...args);
+  }
+}
+
 // Initialize extension state
 chrome.runtime.onInstalled.addListener(() => {
+  debugLog('Extension installed/updated');
   // Set default state
   chrome.storage.local.set({ 
     cacheKillerEnabled: false,
@@ -23,8 +32,11 @@ chrome.runtime.onInstalled.addListener(() => {
 // Listen for storage changes to update state
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
+    debugLog('Storage changed:', changes);
+    
     if (changes.cacheKillerEnabled) {
       isEnabled = changes.cacheKillerEnabled.newValue;
+      debugLog('Extension enabled changed to:', isEnabled);
       updateIcon(isEnabled);
       
       if (isEnabled) {
@@ -36,6 +48,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     
     if (changes.cacheKillerMode) {
       mode = changes.cacheKillerMode.newValue;
+      debugLog('Mode changed to:', mode);
       // Update rules when mode changes
       if (isEnabled) {
         updateCacheKillingRules();
@@ -45,6 +58,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     
     if (changes.cacheKillerUrls) {
       urls = changes.cacheKillerUrls.newValue || [];
+      debugLog('URLs changed to:', urls);
       // Update rules when URLs change
       if (isEnabled) {
         updateCacheKillingRules();
@@ -59,6 +73,8 @@ chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerU
   mode = result.cacheKillerMode || 'all';
   urls = result.cacheKillerUrls || [];
   
+  debugLog('Initial state loaded:', { isEnabled, mode, urls });
+  
   updateIcon(isEnabled);
   
   if (isEnabled) {
@@ -67,6 +83,7 @@ chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerU
 });
 
 function enableCacheKilling() {
+  debugLog('Enabling cache killing...');
   // Use declarativeNetRequest API to modify headers
   updateCacheKillingRules();
   
@@ -90,20 +107,31 @@ function disableCacheKilling() {
 }
 
 function updateCacheKillingRules() {
+  debugLog('Updating cache killing rules for mode:', mode, 'with URLs:', urls);
+  
   // Remove all existing cache killer rules (we'll use multiple rule IDs)
   const ruleIdsToRemove = [];
   for (let i = 1; i <= 100; i++) { // Remove up to 100 rules
     ruleIdsToRemove.push(i);
   }
   
+  const newRules = createCacheKillerRules();
+  debugLog('Creating rules:', newRules);
+  
   chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: ruleIdsToRemove,
-    addRules: createCacheKillerRules()
+    addRules: newRules
+  }).then(() => {
+    debugLog('Rules updated successfully');
+  }).catch((error) => {
+    debugLog('Error updating rules:', error);
   });
 }
 
 function createCacheKillerRules() {
   const rules = [];
+  
+  debugLog('Creating rules for mode:', mode, 'URLs:', urls);
   
   if (mode === 'inclusive' && urls.length > 0) {
     // Create a rule for each URL pattern in inclusive mode
@@ -112,11 +140,12 @@ function createCacheKillerRules() {
       
       // Convert wildcard pattern to declarativeNetRequest format
       if (pattern.includes('*')) {
-        // For patterns like "*.wikipedia.org", convert to "*wikipedia.org*"
         rule.condition.urlFilter = pattern;
+        debugLog(`Rule ${index + 1} for pattern "${pattern}": urlFilter = "${pattern}"`);
       } else {
         // For exact matches, ensure we match the full domain
         rule.condition.urlFilter = `*${pattern}*`;
+        debugLog(`Rule ${index + 1} for pattern "${pattern}": urlFilter = "*${pattern}*"`);
       }
       
       rules.push(rule);
@@ -125,9 +154,11 @@ function createCacheKillerRules() {
     // For 'all' or 'exclusive' mode, create one rule that applies to all URLs
     const rule = createBaseCacheKillerRule(1);
     rule.condition.urlFilter = "*";
+    debugLog('Rule 1 for mode:', mode, 'urlFilter = "*"');
     rules.push(rule);
   }
   
+  debugLog('Total rules created:', rules.length);
   return rules;
 }
 
@@ -152,22 +183,36 @@ function createBaseCacheKillerRule(ruleId) {
 }
 
 function shouldProcessUrl(url) {
+  debugLog('Checking shouldProcessUrl for:', url, 'mode:', mode, 'urls:', urls);
+  
   if (mode === 'all') {
+    debugLog('Mode is "all", returning true');
     return true;
   }
   
-  const matches = urls.some(pattern => matchesPattern(url, pattern));
+  const matches = urls.some(pattern => {
+    const result = matchesPattern(url, pattern);
+    debugLog(`Pattern "${pattern}" matches "${url}":`, result);
+    return result;
+  });
+  
+  debugLog('Any pattern matches:', matches);
   
   if (mode === 'inclusive') {
+    debugLog('Mode is "inclusive", returning:', matches);
     return matches; // Only process if URL matches the include list
   } else if (mode === 'exclusive') {
+    debugLog('Mode is "exclusive", returning:', !matches);
     return !matches; // Only process if URL does NOT match the exclude list
   }
   
+  debugLog('Default fallback, returning true');
   return true; // Default fallback
 }
 
 function matchesPattern(url, pattern) {
+  debugLog(`matchesPattern: checking "${url}" against pattern "${pattern}"`);
+  
   // Convert pattern to regex
   // Escape special regex characters except * and ?
   const escapedPattern = pattern
@@ -175,21 +220,32 @@ function matchesPattern(url, pattern) {
     .replace(/\*/g, '.*')
     .replace(/\?/g, '.');
   
+  debugLog(`Escaped pattern: "${escapedPattern}"`);
+  
   const regex = new RegExp('^' + escapedPattern + '$', 'i');
-  return regex.test(url);
+  const result = regex.test(url);
+  
+  debugLog(`Regex test result: ${result}`);
+  return result;
 }
 
 // Function to check if cache killer is active for a given URL
 // This can be called from popup to show current page status
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkPageStatus') {
+    debugLog('Checking page status for URL:', request.url);
+    debugLog('Current state - isEnabled:', isEnabled, 'mode:', mode, 'urls:', urls);
+    
     const isActive = isEnabled && shouldProcessUrl(request.url);
-    sendResponse({
+    const response = {
       isActive: isActive,
       isEnabled: isEnabled,
       mode: mode,
       urlMatches: isEnabled ? shouldProcessUrl(request.url) : false
-    });
+    };
+    
+    debugLog('Sending response:', response);
+    sendResponse(response);
   }
 });
 
