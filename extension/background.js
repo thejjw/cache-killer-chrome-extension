@@ -213,20 +213,41 @@ function shouldProcessUrl(url) {
 function matchesPattern(url, pattern) {
   debugLog(`matchesPattern: checking "${url}" against pattern "${pattern}"`);
   
-  // Convert pattern to regex
-  // Escape special regex characters except * and ?
-  const escapedPattern = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*')
-    .replace(/\?/g, '.');
+  // Extract domain from URL for domain-based matching
+  let domain;
+  try {
+    const urlObj = new URL(url);
+    domain = urlObj.hostname;
+    debugLog(`Extracted domain from URL: "${domain}"`);
+  } catch (e) {
+    debugLog(`Failed to parse URL: ${e}`);
+    return false;
+  }
   
-  debugLog(`Escaped pattern: "${escapedPattern}"`);
-  
-  const regex = new RegExp('^' + escapedPattern + '$', 'i');
-  const result = regex.test(url);
-  
-  debugLog(`Regex test result: ${result}`);
-  return result;
+  if (pattern.startsWith('*.')) {
+    // For patterns like "*.wikipedia.org", match subdomains but not the root domain
+    // Remove the "*." and check if domain ends with the pattern AND has a subdomain
+    const domainPattern = pattern.substring(2); // Remove "*."
+    const result = domain.endsWith(domainPattern) && domain !== domainPattern && domain.length > domainPattern.length;
+    debugLog(`Wildcard domain pattern: "${pattern}" -> checking if "${domain}" ends with "${domainPattern}" and is not exactly "${domainPattern}": ${result}`);
+    return result;
+  } else if (pattern.includes('*') || pattern.includes('?')) {
+    // Regular wildcard pattern - escape special regex characters except * and ?
+    const escapedPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
+    
+    const regex = new RegExp('^' + escapedPattern + '$', 'i');
+    const result = regex.test(url);
+    debugLog(`Wildcard pattern: "${pattern}" -> regex: "^${escapedPattern}$" -> result: ${result}`);
+    return result;
+  } else {
+    // Exact match
+    const result = url.toLowerCase().includes(pattern.toLowerCase());
+    debugLog(`Exact pattern: "${pattern}" -> checking if URL contains it: ${result}`);
+    return result;
+  }
 }
 
 // Function to check if cache killer is active for a given URL
