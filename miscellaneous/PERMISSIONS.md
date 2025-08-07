@@ -1,6 +1,6 @@
-# Permissions required
+# Permissions Required
 
-## Cache Killer Extension - Permission
+## Cache Killer Extension - Permissions
 
 This document provides a detailed explanation for each permission requested by the Cache Killer extension.
 
@@ -22,10 +22,10 @@ This document provides a detailed explanation for each permission requested by t
 
 **Technical necessity:** Uses `chrome.browsingData.removeCache()` to clear the cache at regular intervals while the extension is active.
 
-### `webRequest`
-**Justification:** Required to intercept outgoing HTTP requests and modify their headers to prevent caching. This is a core part of the extension’s cache-killing functionality.
+### `declarativeNetRequest`
+**Justification:** Required to intercept and modify HTTP request headers to prevent caching. This permission allows the extension to add no-cache headers to requests using Chrome's modern Manifest V3 API.
 
-**Technical necessity:** Uses `chrome.webRequest.onBeforeSendHeaders` to add `Cache-Control`, `Pragma`, and `Expires` headers to all requests.
+**Technical necessity:** Uses `chrome.declarativeNetRequest.updateDynamicRules()` to create rules that add `Cache-Control`, `Pragma`, and `Expires` headers to requests, and remove existing cache-related headers like `If-Modified-Since` and `If-None-Match`.
 
 ### `storage`
 **Justification:** Required to store user preferences, including the enabled/disabled state, selected mode (all/inclusive/exclusive), and the list of user-configured URLs or patterns.

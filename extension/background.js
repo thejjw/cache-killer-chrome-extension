@@ -6,6 +6,9 @@ let isEnabled = false;
 let mode = 'all';
 let urls = [];
 
+// Rule ID for declarativeNetRequest
+const CACHE_KILLER_RULE_ID = 1;
+
 // Initialize extension state
 chrome.runtime.onInstalled.addListener(() => {
   // Set default state
@@ -33,14 +36,19 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     
     if (changes.cacheKillerMode) {
       mode = changes.cacheKillerMode.newValue;
-      // Update icon to reflect new mode
+      // Update rules when mode changes
       if (isEnabled) {
+        updateCacheKillingRules();
         updateIcon(true);
       }
     }
     
     if (changes.cacheKillerUrls) {
       urls = changes.cacheKillerUrls.newValue || [];
+      // Update rules when URLs change
+      if (isEnabled) {
+        updateCacheKillingRules();
+      }
     }
   }
 });
@@ -59,49 +67,88 @@ chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerU
 });
 
 function enableCacheKilling() {
-  // Method 1: Modify request headers to prevent caching
-  chrome.webRequest.onBeforeSendHeaders.addListener(
-    modifyRequestHeaders,
-    { urls: ["<all_urls>"] },
-    ["blocking", "requestHeaders"]
-  );
+  // Use declarativeNetRequest API to modify headers
+  updateCacheKillingRules();
   
-  // Method 2: Clear cache periodically (as backup)
+  // Also clear cache periodically (as backup)
   startCacheClearing();
 }
 
 function disableCacheKilling() {
-  // Remove the request header listener
-  if (chrome.webRequest.onBeforeSendHeaders.hasListener(modifyRequestHeaders)) {
-    chrome.webRequest.onBeforeSendHeaders.removeListener(modifyRequestHeaders);
+  // Remove all declarativeNetRequest rules
+  const ruleIdsToRemove = [];
+  for (let i = 1; i <= 100; i++) { // Remove up to 100 rules
+    ruleIdsToRemove.push(i);
   }
+  
+  chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: ruleIdsToRemove
+  });
   
   // Stop cache clearing
   stopCacheClearing();
 }
 
-function modifyRequestHeaders(details) {
-  if (!isEnabled) return;
+function updateCacheKillingRules() {
+  // Remove all existing cache killer rules (we'll use multiple rule IDs)
+  const ruleIdsToRemove = [];
+  for (let i = 1; i <= 100; i++) { // Remove up to 100 rules
+    ruleIdsToRemove.push(i);
+  }
   
-  // Check if URL should be processed based on mode
-  if (!shouldProcessUrl(details.url)) return;
+  chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: ruleIdsToRemove,
+    addRules: createCacheKillerRules()
+  });
+}
+
+function createCacheKillerRules() {
+  const rules = [];
   
-  // Add no-cache headers to prevent caching
-  const headers = details.requestHeaders || [];
+  if (mode === 'inclusive' && urls.length > 0) {
+    // Create a rule for each URL pattern in inclusive mode
+    urls.forEach((pattern, index) => {
+      const rule = createBaseCacheKillerRule(index + 1);
+      
+      // Convert wildcard pattern to declarativeNetRequest format
+      if (pattern.includes('*')) {
+        // For patterns like "*.wikipedia.org", convert to "*wikipedia.org*"
+        rule.condition.urlFilter = pattern;
+      } else {
+        // For exact matches, ensure we match the full domain
+        rule.condition.urlFilter = `*${pattern}*`;
+      }
+      
+      rules.push(rule);
+    });
+  } else {
+    // For 'all' or 'exclusive' mode, create one rule that applies to all URLs
+    const rule = createBaseCacheKillerRule(1);
+    rule.condition.urlFilter = "*";
+    rules.push(rule);
+  }
   
-  // Remove existing cache-related headers
-  const filteredHeaders = headers.filter(header => 
-    !['if-modified-since', 'if-none-match', 'cache-control'].includes(header.name.toLowerCase())
-  );
-  
-  // Add no-cache headers
-  filteredHeaders.push(
-    { name: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
-    { name: 'Pragma', value: 'no-cache' },
-    { name: 'Expires', value: '0' }
-  );
-  
-  return { requestHeaders: filteredHeaders };
+  return rules;
+}
+
+function createBaseCacheKillerRule(ruleId) {
+  return {
+    id: ruleId,
+    priority: 1,
+    action: {
+      type: "modifyHeaders",
+      requestHeaders: [
+        { header: "Cache-Control", operation: "set", value: "no-cache, no-store, must-revalidate" },
+        { header: "Pragma", operation: "set", value: "no-cache" },
+        { header: "Expires", operation: "set", value: "0" },
+        { header: "If-Modified-Since", operation: "remove" },
+        { header: "If-None-Match", operation: "remove" }
+      ]
+    },
+    condition: {
+      resourceTypes: ["main_frame", "sub_frame", "script", "stylesheet", "image", "font", "object", "xmlhttprequest", "ping", "csp_report", "media", "websocket", "other"]
+    }
+  };
 }
 
 function shouldProcessUrl(url) {

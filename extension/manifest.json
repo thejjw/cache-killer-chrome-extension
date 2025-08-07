@@ -6,7 +6,7 @@
   "permissions": [
     "browsingData",
     "storage",
-    "webRequest",
+    "declarativeNetRequest",
     "activeTab",
     "tabs"
   ],
