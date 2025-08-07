@@ -353,9 +353,4 @@ chrome.action.onClicked.addListener(async (tab) => {
   const newState = !currentState;
   
   await chrome.storage.local.set({ cacheKillerEnabled: newState });
-  
-  // Reload the active tab to apply changes immediately
-  if (newState) {
-    chrome.tabs.reload(tab.id, { bypassCache: true });
-  }
 });

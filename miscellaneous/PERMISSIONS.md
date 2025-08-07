@@ -28,18 +28,13 @@ This document provides a detailed explanation for each permission requested by t
 **Technical necessity:** Uses `chrome.declarativeNetRequest.updateDynamicRules()` to create rules that add `Cache-Control`, `Pragma`, and `Expires` headers to requests, and remove existing cache-related headers like `If-Modified-Since` and `If-None-Match`.
 
 ### `storage`
-**Justification:** Required to store user preferences, including the enabled/disabled state, selected mode (all/inclusive/exclusive), and the list of user-configured URLs or patterns.
+**Justification:** Required to store user preferences, including the enabled/disabled state, selected mode (all/inclusive/exclusive), and the list of user-configured domains.
 
 **Technical necessity:** Uses `chrome.storage.local` to persist extension settings and user configuration across browser sessions.
 
-### `activeTab`
-**Justification:** Required to reload the current tab with cache bypass when the extension is enabled or disabled, ensuring immediate effect for the user.
-
-**Technical necessity:** Uses `chrome.tabs.reload(tabId, { bypassCache: true })` to force a fresh reload of the current page.
-
 ### `tabs`
-**Justification:** Required to open the URL configuration popup window and to query the current active tab for status display in the popup.
+**Justification:** Required to open the domain configuration popup window and to query the current active tab for status display in the popup.
 
-**Technical necessity:** Uses `chrome.tabs.query()` to determine the current tab and `chrome.windows.create()` to open the configuration interface.
+**Technical necessity:** Uses `chrome.tabs.query()` to determine the current tab's URL for status checking and `chrome.windows.create()` to open the configuration interface.
 
 ---

@@ -7,7 +7,6 @@
     "browsingData",
     "storage",
     "declarativeNetRequest",
-    "activeTab",
     "tabs"
   ],
   "host_permissions": [
