@@ -18,9 +18,9 @@ This document provides a detailed explanation for each permission requested by t
 ## API Permissions
 
 ### `browsingData`
-**Justification:** Required to clear the browser cache programmatically. This ensures that, when enabled, the browser does not serve cached content and always fetches fresh data from the server.
+**Justification:** Required to clear the browser cache programmatically. This ensures that, when enabled, the browser does not serve cached content and always fetches fresh data from the server. Cache clearing respects the configured domain lists when possible.
 
-**Technical necessity:** Uses `chrome.browsingData.removeCache()` to clear the cache at regular intervals while the extension is active.
+**Technical necessity:** Uses `chrome.browsingData.removeCache()` and `chrome.browsingData.remove()` with the `origins` parameter to clear cache either globally or for specific domains, depending on the selected mode and domain configuration.
 
 ### `declarativeNetRequest`
 **Justification:** Required to intercept and modify HTTP request headers to prevent caching. This permission allows the extension to add no-cache headers to requests using Chrome's modern Manifest V3 API.

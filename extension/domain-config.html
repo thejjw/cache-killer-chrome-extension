@@ -155,6 +155,15 @@
       color: #666;
     }
     
+    .info {
+      background-color: #f8f9fa;
+      border-left: 4px solid #2196F3;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    
     footer {
       margin-top: 15px;
       padding-top: 10px;
@@ -173,27 +182,31 @@
   <div class="header">Configure Domain List</div>
 
   <div class="description">
-    Add domains to include or exclude from cache killing. Use wildcards (*) for subdomain matching.
+    Add domains to include or exclude from cache killing. <strong>Exact domain names are recommended</strong> for full feature support. Wildcards (*) work but may limit some optional cache clearing features.
   </div>
 
   <div class="input-section">
     <label for="domainInput">Add Domain:</label>
-    <input type="text" id="domainInput" class="domain-input" placeholder="e.g., *.wikipedia.org, example.com">
+    <input type="text" id="domainInput" class="domain-input" placeholder="e.g., example.com, localhost (exact domains recommended)">
     <button class="add-button" id="addButton">Add Domain</button>
   </div>
 
   <div class="examples">
     <strong>Examples:</strong><br>
-    • *.wikipedia.org - All Wikipedia subdomains (en.wikipedia.org, fr.wikipedia.org, etc.)<br>
-    • example.com - Exact domain match<br>
-    • localhost - Local development (matches all ports: localhost:3000, localhost:8080, etc.)<br>
-    • *.google.com - All Google subdomains but not google.com itself<br>
-    • google.com - Exact match for google.com<br>
+    • example.com - Exact domain match ✅ <em>Recommended</em><br>
+    • localhost - Local development (matches all ports: localhost:3000, localhost:8080, etc.) ✅<br>
+    • google.com - Exact match for google.com ✅<br>
+    • *.wikipedia.org - All Wikipedia subdomains ⚠️ <em>Limited cache clearing</em><br>
+    • *.google.com - All Google subdomains ⚠️ <em>Limited cache clearing</em><br>
     <br>
+    <strong>⚠️ Wildcard Limitations:</strong> Wildcard patterns (*.domain.com) work fine for header modification but limit optional cache clearing functionality. If you enable periodic cache clearing, wildcards may cause it to affect ALL websites or be skipped entirely. Use exact domains when possible for better control over cache clearing features.
+    <br><br>
     <strong>Note:</strong> Only domain names are matched. Ports are ignored, so "localhost" will match localhost:3000, localhost:8080, etc.
   </div>
   
   <div class="info">
+    <strong>💡 Best Practice:</strong> Use exact domain names for full feature support. Wildcards work fine for basic cache prevention but may limit optional cache clearing features.
+    <br><br>
     <strong>Cache Clearing Methods:</strong> The extension primarily uses HTTP headers to prevent caching. 
     For additional cache clearing that affects all sites (not just configured domains), enable "Periodic cache clearing" in the main popup.
   </div>

@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pageStatus = document.getElementById('pageStatus');
   const periodicCacheClearingCheckbox = document.getElementById('periodicCacheClearing');
   const manualCacheClearButton = document.getElementById('manualCacheClear');
+  const wildcardFallbackCheckbox = document.getElementById('wildcardFallbackAllCache');
   
   // Load extension version and populate footer
   try {
@@ -36,21 +37,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     'cacheKillerEnabled', 
     'cacheKillerMode', 
     'cacheKillerDomains',
-    'periodicCacheClearing'
+    'periodicCacheClearing',
+    'wildcardFallbackAllCache'
   ]);
   
   const isEnabled = result.cacheKillerEnabled || false;
   const mode = result.cacheKillerMode || 'all';
   const domains = result.cacheKillerDomains || [];
   const periodicClearing = result.periodicCacheClearing || false;
+  const wildcardFallback = result.wildcardFallbackAllCache || false;
   
-  debugLog('Popup loaded with state:', { isEnabled, mode, domains, periodicClearing });
+  debugLog('Popup loaded with state:', { isEnabled, mode, domains, periodicClearing, wildcardFallback });
   
   // Update UI
   toggleSwitch.checked = isEnabled;
   updateStatus(isEnabled);
   updateDomainCount(domains.length);
   periodicCacheClearingCheckbox.checked = periodicClearing;
+  wildcardFallbackCheckbox.checked = wildcardFallback;
   
   // Set mode radio button
   const selectedModeRadio = document.querySelector(`input[name="mode"][value="${mode}"]`);
@@ -92,6 +96,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enabled = event.target.checked;
     await chrome.storage.local.set({ periodicCacheClearing: enabled });
     debugLog('Periodic cache clearing set to:', enabled);
+  });
+  
+  // Handle wildcard fallback checkbox
+  wildcardFallbackCheckbox.addEventListener('change', async (event) => {
+    const enabled = event.target.checked;
+    await chrome.storage.local.set({ wildcardFallbackAllCache: enabled });
+    debugLog('Wildcard fallback to all cache set to:', enabled);
   });
   
   // Handle manual cache clear button

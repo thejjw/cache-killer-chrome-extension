@@ -8,6 +8,7 @@ let isEnabled = false;
 let mode = 'all';
 let domains = [];
 let periodicCacheClearing = false;
+let wildcardFallbackAllCache = false;
 
 // Rule ID for declarativeNetRequest
 const CACHE_KILLER_RULE_ID = 1;
@@ -26,7 +27,8 @@ chrome.runtime.onInstalled.addListener(() => {
     cacheKillerEnabled: false,
     cacheKillerMode: 'all',
     cacheKillerDomains: [],
-    periodicCacheClearing: false
+    periodicCacheClearing: false,
+    wildcardFallbackAllCache: false
   });
   updateIcon(false);
 });
@@ -79,17 +81,23 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         }
       }
     }
+    
+    if (changes.wildcardFallbackAllCache) {
+      wildcardFallbackAllCache = changes.wildcardFallbackAllCache.newValue;
+      debugLog('Wildcard fallback to all cache changed to:', wildcardFallbackAllCache);
+    }
   }
 });
 
 // Load initial state
-chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains', 'periodicCacheClearing'], (result) => {
+chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains', 'periodicCacheClearing', 'wildcardFallbackAllCache'], (result) => {
   isEnabled = result.cacheKillerEnabled || false;
   mode = result.cacheKillerMode || 'all';
   domains = result.cacheKillerDomains || [];
   periodicCacheClearing = result.periodicCacheClearing || false;
+  wildcardFallbackAllCache = result.wildcardFallbackAllCache || false;
   
-  debugLog('Initial state loaded:', { isEnabled, mode, domains, periodicCacheClearing });
+  debugLog('Initial state loaded:', { isEnabled, mode, domains, periodicCacheClearing, wildcardFallbackAllCache });
   
   updateIcon(isEnabled);
   
@@ -278,18 +286,101 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(response);
   } else if (request.action === 'clearCacheNow') {
     console.log('[Cache Killer] Manual cache clear requested');
-    chrome.browsingData.removeCache({
-      since: Date.now() - 1000 * 60 * 60 * 24 // Clear last 24 hours for manual clear
-    }).then(() => {
-      console.log('[Cache Killer] Manual cache clear completed successfully');
+    const timeRange = { since: Date.now() - 1000 * 60 * 60 * 24 }; // Clear last 24 hours for manual clear
+    
+    if (mode === 'all') {
+      chrome.browsingData.removeCache(timeRange).then(() => {
+        console.log('[Cache Killer] Manual cache clear completed successfully (all sites)');
+        sendResponse({ success: true });
+      }).catch((error) => {
+        console.error('[Cache Killer] Manual cache clear failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    } else if (mode === 'inclusive' && domains.length > 0) {
+      clearCacheForDomainsManual(domains, timeRange, sendResponse);
+    } else if (mode === 'exclusive' && domains.length > 0) {
+      chrome.browsingData.removeCache(timeRange).then(() => {
+        console.log('[Cache Killer] Manual cache clear completed successfully (exclusive mode)');
+        sendResponse({ success: true });
+      }).catch((error) => {
+        console.error('[Cache Killer] Manual cache clear failed (exclusive mode):', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    } else {
+      // Fallback to clearing all cache
+      chrome.browsingData.removeCache(timeRange).then(() => {
+        console.log('[Cache Killer] Manual cache clear completed successfully (fallback)');
+        sendResponse({ success: true });
+      }).catch((error) => {
+        console.error('[Cache Killer] Manual cache clear failed (fallback):', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    }
+    return true; // Will respond asynchronously
+  }
+});
+
+function clearCacheForDomainsManual(domainsList, timeRange, sendResponse) {
+  console.log('[Cache Killer] Manual clearing cache for specific domains:', domainsList);
+  
+  // Convert domain patterns to origin URLs
+  const origins = [];
+  let hasWildcards = false;
+  
+  domainsList.forEach(domain => {
+    if (domain.startsWith('*.')) {
+      hasWildcards = true;
+    } else {
+      // Add both http and https versions of the domain
+      origins.push(`https://${domain}`);
+      origins.push(`http://${domain}`);
+    }
+  });
+  
+  if (hasWildcards && !wildcardFallbackAllCache) {
+    // User hasn't opted in to clearing all cache for wildcards
+    console.log('[Cache Killer] Wildcard patterns detected but wildcard fallback is disabled - skipping cache clearing');
+    sendResponse({ success: true, message: 'Cache clearing skipped due to wildcard patterns. Enable "Clear all cache for wildcards" option to proceed.' });
+    return;
+  } else if (hasWildcards && wildcardFallbackAllCache) {
+    // User has opted in to clearing all cache when wildcards are present
+    console.log('[Cache Killer] Wildcard patterns detected with fallback enabled - clearing all cache');
+    chrome.browsingData.removeCache(timeRange).then(() => {
+      console.log('[Cache Killer] Manual cache clear completed (all sites due to wildcards with user consent)');
       sendResponse({ success: true });
     }).catch((error) => {
       console.error('[Cache Killer] Manual cache clear failed:', error);
       sendResponse({ success: false, error: error.message });
     });
-    return true; // Will respond asynchronously
+    return;
   }
-});
+  
+  if (origins.length > 0) {
+    const options = {
+      ...timeRange,
+      origins: origins
+    };
+    
+    console.log('[Cache Killer] Manual clearing cache for origins:', origins);
+    chrome.browsingData.remove(
+      options,
+      {
+        cache: true,
+        cacheStorage: true
+      }
+    ).then(() => {
+      console.log('[Cache Killer] Manual domain-specific cache clear completed successfully');
+      sendResponse({ success: true });
+    }).catch((error) => {
+      console.error('[Cache Killer] Manual domain-specific cache clear failed:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+  } else {
+    // No valid origins but no wildcards either - this shouldn't happen but handle gracefully
+    console.log('[Cache Killer] No valid origins for manual cache clear');
+    sendResponse({ success: true, message: 'No valid domains to clear cache for' });
+  }
+}
 
 let cacheCleanInterval;
 
@@ -302,14 +393,8 @@ function startCacheClearing() {
   // Clear cache every 5 seconds when enabled
   cacheCleanInterval = setInterval(() => {
     if (isEnabled && periodicCacheClearing) {
-      console.log('[Cache Killer] Clearing browser cache (last 5 minutes)');
-      chrome.browsingData.removeCache({
-        since: Date.now() - 1000 * 60 * 5 // Last 5 minutes
-      }).then(() => {
-        console.log('[Cache Killer] Cache cleared successfully');
-      }).catch((error) => {
-        console.error('[Cache Killer] Failed to clear cache:', error);
-      });
+      console.log('[Cache Killer] Clearing browser cache based on current mode and domains');
+      clearCacheByMode();
     }
   }, 5000);
 }
@@ -319,6 +404,87 @@ function stopCacheClearing() {
     console.log('[Cache Killer] Stopping periodic cache clearing');
     clearInterval(cacheCleanInterval);
     cacheCleanInterval = null;
+  }
+}
+
+function clearCacheByMode() {
+  const timeRange = { since: Date.now() - 1000 * 60 * 5 }; // Last 5 minutes
+  
+  if (mode === 'all') {
+    // Clear all cache
+    console.log('[Cache Killer] Clearing all cache (all sites mode)');
+    chrome.browsingData.removeCache(timeRange).then(() => {
+      console.log('[Cache Killer] All cache cleared successfully');
+    }).catch((error) => {
+      console.error('[Cache Killer] Failed to clear all cache:', error);
+    });
+  } else if (mode === 'inclusive' && domains.length > 0) {
+    // Clear cache only for specified domains
+    clearCacheForDomains(domains, timeRange);
+  } else if (mode === 'exclusive' && domains.length > 0) {
+    // For exclusive mode, we clear all cache (can't selectively exclude with origins API)
+    console.log('[Cache Killer] Clearing all cache (exclusive mode - API limitation)');
+    chrome.browsingData.removeCache(timeRange).then(() => {
+      console.log('[Cache Killer] All cache cleared successfully (exclusive mode)');
+    }).catch((error) => {
+      console.error('[Cache Killer] Failed to clear cache in exclusive mode:', error);
+    });
+  }
+}
+
+function clearCacheForDomains(domainsList, timeRange) {
+  console.log('[Cache Killer] Clearing cache for specific domains:', domainsList);
+  
+  // Convert domain patterns to origin URLs
+  const origins = [];
+  let hasWildcards = false;
+  
+  domainsList.forEach(domain => {
+    if (domain.startsWith('*.')) {
+      hasWildcards = true;
+    } else {
+      // Add both http and https versions of the domain
+      origins.push(`https://${domain}`);
+      origins.push(`http://${domain}`);
+    }
+  });
+  
+  if (hasWildcards && !wildcardFallbackAllCache) {
+    // User hasn't opted in to clearing all cache for wildcards - skip cache clearing
+    console.log(`[Cache Killer] Wildcard patterns detected but wildcard fallback is disabled - skipping cache clearing`);
+    console.log(`[Cache Killer] Enable "Clear all cache for wildcards" in advanced settings to clear cache when wildcard patterns are present`);
+    return;
+  } else if (hasWildcards && wildcardFallbackAllCache) {
+    // User has opted in to clearing all cache when wildcards are present
+    console.log(`[Cache Killer] Wildcard patterns detected with fallback enabled - clearing all cache`);
+    chrome.browsingData.removeCache(timeRange).then(() => {
+      console.log('[Cache Killer] All cache cleared (due to wildcard patterns with user consent)');
+    }).catch((error) => {
+      console.error('[Cache Killer] Failed to clear cache:', error);
+    });
+    return;
+  }
+  
+  if (origins.length > 0) {
+    const options = {
+      ...timeRange,
+      origins: origins
+    };
+    
+    console.log('[Cache Killer] Clearing cache for origins:', origins);
+    chrome.browsingData.remove(
+      options,
+      {
+        cache: true,
+        cacheStorage: true
+      }
+    ).then(() => {
+      console.log('[Cache Killer] Domain-specific cache cleared successfully');
+    }).catch((error) => {
+      console.error('[Cache Killer] Failed to clear domain-specific cache:', error);
+    });
+  } else {
+    console.log('[Cache Killer] No valid origins to clear cache for');
   }
 }
 

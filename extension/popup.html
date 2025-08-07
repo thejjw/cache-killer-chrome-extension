@@ -281,15 +281,21 @@
       <div class="radio-option" style="margin-top: 5px;">
         <input type="checkbox" id="periodicCacheClearing">
         <label for="periodicCacheClearing" style="font-size: 11px; color: #666; cursor: pointer;">
-          Periodic cache clearing (affects all sites)
+          Periodic cache clearing
         </label>
       </div>
-      <div style="font-size: 10px; color: #999; margin-top: 3px; line-height: 1.2;">
-        When enabled, clears browser cache every 5 seconds. This affects all websites, not just configured domains.
+      <div class="radio-option" style="margin-top: 5px;">
+        <input type="checkbox" id="wildcardFallbackAllCache">
+        <label for="wildcardFallbackAllCache" style="font-size: 11px; color: #666; cursor: pointer;">
+          Change behavior to clear all cache for wildcards (e.g., *.example.com)
+        </label>
       </div>
       <div class="cache-clear-container">
         <button class="manual-cache-button" id="manualCacheClear">Clear Cache Now</button>
-        <span style="font-size: 10px; color: #999;">Manual cache clear (all sites)</span>
+        <span style="font-size: 10px; color: #999;">Manual cache clear</span>
+      </div>
+      <div style="font-size: 10px; color: #999; margin-top: 3px; line-height: 1.2;">
+        Periodic clearing: affects all websites. Wildcard fallback: by default, wildcard patterns (*.domain.com) skip cache clearing to avoid affecting all sites.
       </div>
     </div>
   </div>
