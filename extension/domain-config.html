@@ -39,7 +39,7 @@
       font-size: 12px;
     }
 
-    .url-input {
+    .domain-input {
       width: 100%;
       padding: 8px;
       border: 1px solid #ccc;
@@ -64,7 +64,7 @@
       background-color: #45a049;
     }
 
-    .url-list {
+    .domain-list {
       max-height: 200px;
       overflow-y: auto;
       border: 1px solid #ddd;
@@ -73,7 +73,7 @@
       margin: 15px 0;
     }
 
-    .url-item {
+    .domain-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -84,7 +84,7 @@
       font-size: 11px;
     }
 
-    .url-text {
+    .domain-text {
       flex: 1;
       margin-right: 10px;
       word-break: break-all;
@@ -170,28 +170,31 @@
 </head>
 
 <body>
-  <div class="header">Configure URL List</div>
+  <div class="header">Configure Domain List</div>
 
   <div class="description">
-    Add URLs or patterns to include or exclude from cache killing. Use wildcards (*) for pattern matching.
+    Add domains to include or exclude from cache killing. Use wildcards (*) for subdomain matching.
   </div>
 
   <div class="input-section">
-    <label for="urlInput">Add URL or Pattern:</label>
-    <input type="text" id="urlInput" class="url-input" placeholder="e.g., *.example.com, https://api.mysite.com/*">
-    <button class="add-button" id="addButton">Add URL</button>
+    <label for="domainInput">Add Domain:</label>
+    <input type="text" id="domainInput" class="domain-input" placeholder="e.g., *.wikipedia.org, example.com">
+    <button class="add-button" id="addButton">Add Domain</button>
   </div>
 
   <div class="examples">
     <strong>Examples:</strong><br>
-    • *.wikipedia.org - Wikipedia subdomains only (en.wikipedia.org, fr.wikipedia.org, etc.)<br>
-    • https://api.example.com/* - All API endpoints<br>
-    • localhost:3000 - URLs containing this text<br>
-    • example.com - URLs containing "example.com" (matches subdomains but also partial matches)
+    • *.wikipedia.org - All Wikipedia subdomains (en.wikipedia.org, fr.wikipedia.org, etc.)<br>
+    • example.com - Exact domain match<br>
+    • localhost - Local development (matches all ports: localhost:3000, localhost:8080, etc.)<br>
+    • *.google.com - All Google subdomains but not google.com itself<br>
+    • google.com - Exact match for google.com<br>
+    <br>
+    <strong>Note:</strong> Only domain names are matched. Ports are ignored, so "localhost" will match localhost:3000, localhost:8080, etc.
   </div>
 
-  <div class="url-list" id="urlList">
-    <div class="empty-message">No URLs configured</div>
+  <div class="domain-list" id="domainList">
+    <div class="empty-message">No domains configured</div>
   </div>
 
   <div class="actions">
@@ -199,7 +202,7 @@
     <button class="action-button save-button" id="saveButton">Save</button>
   </div>
 
-  <script src="url-config.js"></script>
+  <script src="domain-config.js"></script>
 </body>
 <footer>
   <div class="copyright">© 2025 @thejjw • <span id="version"></span></div>

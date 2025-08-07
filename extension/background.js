@@ -6,7 +6,7 @@ const DEBUG = true; // Set to false to disable debug logs
 
 let isEnabled = false;
 let mode = 'all';
-let urls = [];
+let domains = [];
 
 // Rule ID for declarativeNetRequest
 const CACHE_KILLER_RULE_ID = 1;
@@ -24,7 +24,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ 
     cacheKillerEnabled: false,
     cacheKillerMode: 'all',
-    cacheKillerUrls: []
+    cacheKillerDomains: []
   });
   updateIcon(false);
 });
@@ -56,10 +56,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       }
     }
     
-    if (changes.cacheKillerUrls) {
-      urls = changes.cacheKillerUrls.newValue || [];
-      debugLog('URLs changed to:', urls);
-      // Update rules when URLs change
+    if (changes.cacheKillerDomains) {
+      domains = changes.cacheKillerDomains.newValue || [];
+      debugLog('Domains changed to:', domains);
+      // Update rules when domains change
       if (isEnabled) {
         updateCacheKillingRules();
       }
@@ -68,12 +68,12 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 });
 
 // Load initial state
-chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerUrls'], (result) => {
+chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains'], (result) => {
   isEnabled = result.cacheKillerEnabled || false;
   mode = result.cacheKillerMode || 'all';
-  urls = result.cacheKillerUrls || [];
+  domains = result.cacheKillerDomains || [];
   
-  debugLog('Initial state loaded:', { isEnabled, mode, urls });
+  debugLog('Initial state loaded:', { isEnabled, mode, domains });
   
   updateIcon(isEnabled);
   
@@ -107,7 +107,7 @@ function disableCacheKilling() {
 }
 
 function updateCacheKillingRules() {
-  debugLog('Updating cache killing rules for mode:', mode, 'with URLs:', urls);
+  debugLog('Updating cache killing rules for mode:', mode, 'with domains:', domains);
   
   // Remove all existing cache killer rules (we'll use multiple rule IDs)
   const ruleIdsToRemove = [];
@@ -131,21 +131,22 @@ function updateCacheKillingRules() {
 function createCacheKillerRules() {
   const rules = [];
   
-  debugLog('Creating rules for mode:', mode, 'URLs:', urls);
+  debugLog('Creating rules for mode:', mode, 'domains:', domains);
   
-  if (mode === 'inclusive' && urls.length > 0) {
-    // Create a rule for each URL pattern in inclusive mode
-    urls.forEach((pattern, index) => {
+  if (mode === 'inclusive' && domains.length > 0) {
+    // Create a rule for each domain pattern in inclusive mode
+    domains.forEach((pattern, index) => {
       const rule = createBaseCacheKillerRule(index + 1);
       
-      // Convert wildcard pattern to declarativeNetRequest format
-      if (pattern.includes('*')) {
-        rule.condition.urlFilter = pattern;
-        debugLog(`Rule ${index + 1} for pattern "${pattern}": urlFilter = "${pattern}"`);
+      // Convert domain pattern to declarativeNetRequest format
+      if (pattern.startsWith('*.')) {
+        // For *.domain.com patterns, use the pattern as-is
+        rule.condition.urlFilter = `*${pattern.substring(2)}*`;
+        debugLog(`Rule ${index + 1} for pattern "${pattern}": urlFilter = "*${pattern.substring(2)}*"`);
       } else {
-        // For exact matches, ensure we match the full domain
+        // For exact domain matches
         rule.condition.urlFilter = `*${pattern}*`;
-        debugLog(`Rule ${index + 1} for pattern "${pattern}": urlFilter = "*${pattern}*"`);
+        debugLog(`Rule ${index + 1} for domain "${pattern}": urlFilter = "*${pattern}*"`);
       }
       
       rules.push(rule);
@@ -183,15 +184,15 @@ function createBaseCacheKillerRule(ruleId) {
 }
 
 function shouldProcessUrl(url) {
-  debugLog('Checking shouldProcessUrl for:', url, 'mode:', mode, 'urls:', urls);
+  debugLog('Checking shouldProcessUrl for:', url, 'mode:', mode, 'domains:', domains);
   
   if (mode === 'all') {
     debugLog('Mode is "all", returning true');
     return true;
   }
   
-  const matches = urls.some(pattern => {
-    const result = matchesPattern(url, pattern);
+  const matches = domains.some(pattern => {
+    const result = matchesDomainPattern(url, pattern);
     debugLog(`Pattern "${pattern}" matches "${url}":`, result);
     return result;
   });
@@ -210,10 +211,10 @@ function shouldProcessUrl(url) {
   return true; // Default fallback
 }
 
-function matchesPattern(url, pattern) {
-  debugLog(`matchesPattern: checking "${url}" against pattern "${pattern}"`);
+function matchesDomainPattern(url, pattern) {
+  debugLog(`matchesDomainPattern: checking "${url}" against pattern "${pattern}"`);
   
-  // Extract domain from URL for domain-based matching
+  // Extract domain from URL
   let domain;
   try {
     const urlObj = new URL(url);
@@ -225,27 +226,15 @@ function matchesPattern(url, pattern) {
   }
   
   if (pattern.startsWith('*.')) {
-    // For patterns like "*.wikipedia.org", match subdomains but not the root domain
-    // Remove the "*." and check if domain ends with the pattern AND has a subdomain
+    // For patterns like "*.wikipedia.org", match subdomains only
     const domainPattern = pattern.substring(2); // Remove "*."
     const result = domain.endsWith(domainPattern) && domain !== domainPattern && domain.length > domainPattern.length;
     debugLog(`Wildcard domain pattern: "${pattern}" -> checking if "${domain}" ends with "${domainPattern}" and is not exactly "${domainPattern}": ${result}`);
     return result;
-  } else if (pattern.includes('*') || pattern.includes('?')) {
-    // Regular wildcard pattern - escape special regex characters except * and ?
-    const escapedPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-    
-    const regex = new RegExp('^' + escapedPattern + '$', 'i');
-    const result = regex.test(url);
-    debugLog(`Wildcard pattern: "${pattern}" -> regex: "^${escapedPattern}$" -> result: ${result}`);
-    return result;
   } else {
-    // Exact match
-    const result = url.toLowerCase().includes(pattern.toLowerCase());
-    debugLog(`Exact pattern: "${pattern}" -> checking if URL contains it: ${result}`);
+    // Exact domain match
+    const result = domain === pattern;
+    debugLog(`Exact domain pattern: "${pattern}" -> checking if "${domain}" equals "${pattern}": ${result}`);
     return result;
   }
 }
@@ -255,7 +244,7 @@ function matchesPattern(url, pattern) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkPageStatus') {
     debugLog('Checking page status for URL:', request.url);
-    debugLog('Current state - isEnabled:', isEnabled, 'mode:', mode, 'urls:', urls);
+    debugLog('Current state - isEnabled:', isEnabled, 'mode:', mode, 'domains:', domains);
     
     const isActive = isEnabled && shouldProcessUrl(request.url);
     const response = {

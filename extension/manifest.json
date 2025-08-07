@@ -27,7 +27,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["url-config.html"],
+      "resources": ["domain-config.html"],
       "matches": ["<all_urls>"]
     }
   ]

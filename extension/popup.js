@@ -33,19 +33,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const result = await chrome.storage.local.get([
     'cacheKillerEnabled', 
     'cacheKillerMode', 
-    'cacheKillerUrls'
+    'cacheKillerDomains'
   ]);
   
   const isEnabled = result.cacheKillerEnabled || false;
   const mode = result.cacheKillerMode || 'all';
-  const urls = result.cacheKillerUrls || [];
+  const domains = result.cacheKillerDomains || [];
   
-  debugLog('Popup loaded with state:', { isEnabled, mode, urls });
+  debugLog('Popup loaded with state:', { isEnabled, mode, domains });
   
   // Update UI
   toggleSwitch.checked = isEnabled;
   updateStatus(isEnabled);
-  updateUrlCount(urls.length);
+  updateDomainCount(domains.length);
   
   // Set mode radio button
   const selectedModeRadio = document.querySelector(`input[name="mode"][value="${mode}"]`);
@@ -97,18 +97,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Handle URL configuration button
   configureUrlsButton.addEventListener('click', () => {
     chrome.windows.create({
-      url: chrome.runtime.getURL('url-config.html'),
+      url: chrome.runtime.getURL('domain-config.html'),
       type: 'popup',
       width: 450,
       height: 550
     });
   });
   
-  // Listen for storage changes to update URL count
+  // Listen for storage changes to update domain count
   chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && changes.cacheKillerUrls) {
-      const newUrls = changes.cacheKillerUrls.newValue || [];
-      updateUrlCount(newUrls.length);
+    if (namespace === 'local' && changes.cacheKillerDomains) {
+      const newDomains = changes.cacheKillerDomains.newValue || [];
+      updateDomainCount(newDomains.length);
     }
   });
   
@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     status.className = enabled ? 'status enabled' : 'status';
   }
   
-  function updateUrlCount(count) {
-    urlCount.textContent = `${count} URL${count !== 1 ? 's' : ''} configured`;
+  function updateDomainCount(count) {
+    urlCount.textContent = `${count} domain${count !== 1 ? 's' : ''} configured`;
   }
   
   function updateModeSection(enabled) {
