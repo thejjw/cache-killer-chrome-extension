@@ -14,20 +14,21 @@ A Chrome extension that disables browser cache to ensure pages always load fresh
 - **Badge Mode Indicator**: Badge shows "ON(A)", "ON(I)", or "ON(E)" for All, Include, or Exclude mode
 - **Current Page Status in Popup**: Popup displays if cache killer is active on the current tab, and why/why not
 - **Automatic Cache Prevention**: Uses multiple methods to prevent caching:
-  - Modifies HTTP request headers to add no-cache directives
-  - Periodically clears browser cache when enabled
+  - **Primary Method**: Modifies HTTP request headers to add no-cache directives 
+  - **Optional**: Periodic cache clearing (disabled by default, affects all sites)
+- **Configurable Cache Clearing**: Optional periodic cache clearing that can be enabled in advanced settings
 - **Immediate Effect**: Reloads current tab when enabled to apply changes
 
 ## How It Works
 
 The extension uses two main approaches to disable caching:
 
-1. **Header Modification**: Intercepts HTTP requests and adds cache-control headers:
+1. **Header Modification** (Primary method): Intercepts HTTP requests and adds cache-control headers:
    - `Cache-Control: no-cache, no-store, must-revalidate`
    - `Pragma: no-cache`
    - `Expires: 0`
 
-2. **Periodic Cache Clearing**: Automatically clears browser cache every 5 seconds when enabled using the `chrome.browsingData.removeCache()` API
+2. **Periodic Cache Clearing** (Optional): When enabled in advanced settings, automatically clears browser cache every 5 seconds. **Note**: This method affects all websites regardless of your domain configuration, as the Chrome API doesn't support domain-specific cache clearing.
 
 ## Installation
 
@@ -56,6 +57,7 @@ The extension uses two main approaches to disable caching:
      - **Include List**: Only works on domains you specify
      - **Exclude List**: Works on all sites except domains you specify
    - Click "Configure Domain List" to add/remove domains and patterns
+   - **Advanced Settings**: Enable "Periodic cache clearing" if you need additional cache clearing (affects all sites)
    - All user preferences (enabled state, mode, domain list, etc.) are local and will not follow the user to other Chrome installations.
 3. **Domain Configuration**:
    - Add specific domains: `example.com`, `localhost`
@@ -118,8 +120,8 @@ This extension is built using Chrome Extension Manifest V3, which means:
    - `example.com` matches exactly example.com
    - `localhost` matches the localhost domain
 
-3. **Request Header Modification**: Intercepts HTTP requests and modifies headers to prevent caching
-4. **Active Cache Clearing**: When enabled, clears the cache every 5 seconds to ensure no cached content remains
+3. **Request Header Modification**: Intercepts HTTP requests and modifies headers to prevent caching (domain-specific)
+4. **Optional Active Cache Clearing**: When enabled in advanced settings, clears the cache every 5 seconds (affects all sites)
 5. **Bypass Cache on Reload**: When toggling on, reloads the current tab with `bypassCache: true`
 6. **Badge and Popup Status Logic**:
    - The badge text updates to reflect the current mode (All, Include, Exclude)

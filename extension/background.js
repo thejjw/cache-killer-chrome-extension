@@ -7,6 +7,7 @@ const DEBUG = false; // Set to false to disable debug logs
 let isEnabled = false;
 let mode = 'all';
 let domains = [];
+let periodicCacheClearing = false;
 
 // Rule ID for declarativeNetRequest
 const CACHE_KILLER_RULE_ID = 1;
@@ -24,7 +25,8 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ 
     cacheKillerEnabled: false,
     cacheKillerMode: 'all',
-    cacheKillerDomains: []
+    cacheKillerDomains: [],
+    periodicCacheClearing: false
   });
   updateIcon(false);
 });
@@ -64,16 +66,30 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         updateCacheKillingRules();
       }
     }
+    
+    if (changes.periodicCacheClearing) {
+      periodicCacheClearing = changes.periodicCacheClearing.newValue;
+      debugLog('Periodic cache clearing changed to:', periodicCacheClearing);
+      // Update cache clearing when setting changes
+      if (isEnabled) {
+        if (periodicCacheClearing) {
+          startCacheClearing();
+        } else {
+          stopCacheClearing();
+        }
+      }
+    }
   }
 });
 
 // Load initial state
-chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains'], (result) => {
+chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains', 'periodicCacheClearing'], (result) => {
   isEnabled = result.cacheKillerEnabled || false;
   mode = result.cacheKillerMode || 'all';
   domains = result.cacheKillerDomains || [];
+  periodicCacheClearing = result.periodicCacheClearing || false;
   
-  debugLog('Initial state loaded:', { isEnabled, mode, domains });
+  debugLog('Initial state loaded:', { isEnabled, mode, domains, periodicCacheClearing });
   
   updateIcon(isEnabled);
   
@@ -83,15 +99,19 @@ chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerD
 });
 
 function enableCacheKilling() {
+  console.log('[Cache Killer] Enabling cache killer extension');
   debugLog('Enabling cache killing...');
   // Use declarativeNetRequest API to modify headers
   updateCacheKillingRules();
   
-  // Also clear cache periodically (as backup)
-  startCacheClearing();
+  // Start cache clearing only if the setting is enabled
+  if (periodicCacheClearing) {
+    startCacheClearing();
+  }
 }
 
 function disableCacheKilling() {
+  console.log('[Cache Killer] Disabling cache killer extension');
   // Remove all declarativeNetRequest rules
   const ruleIdsToRemove = [];
   for (let i = 1; i <= 100; i++) { // Remove up to 100 rules
@@ -256,17 +276,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     debugLog('Sending response:', response);
     sendResponse(response);
+  } else if (request.action === 'clearCacheNow') {
+    console.log('[Cache Killer] Manual cache clear requested');
+    chrome.browsingData.removeCache({
+      since: Date.now() - 1000 * 60 * 60 * 24 // Clear last 24 hours for manual clear
+    }).then(() => {
+      console.log('[Cache Killer] Manual cache clear completed successfully');
+      sendResponse({ success: true });
+    }).catch((error) => {
+      console.error('[Cache Killer] Manual cache clear failed:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true; // Will respond asynchronously
   }
 });
 
 let cacheCleanInterval;
 
 function startCacheClearing() {
+  if (cacheCleanInterval) {
+    // Already running, don't start again
+    return;
+  }
+  console.log('[Cache Killer] Starting periodic cache clearing (every 5 seconds)');
   // Clear cache every 5 seconds when enabled
   cacheCleanInterval = setInterval(() => {
-    if (isEnabled) {
+    if (isEnabled && periodicCacheClearing) {
+      console.log('[Cache Killer] Clearing browser cache (last 5 minutes)');
       chrome.browsingData.removeCache({
         since: Date.now() - 1000 * 60 * 5 // Last 5 minutes
+      }).then(() => {
+        console.log('[Cache Killer] Cache cleared successfully');
+      }).catch((error) => {
+        console.error('[Cache Killer] Failed to clear cache:', error);
       });
     }
   }, 5000);
@@ -274,6 +316,7 @@ function startCacheClearing() {
 
 function stopCacheClearing() {
   if (cacheCleanInterval) {
+    console.log('[Cache Killer] Stopping periodic cache clearing');
     clearInterval(cacheCleanInterval);
     cacheCleanInterval = null;
   }

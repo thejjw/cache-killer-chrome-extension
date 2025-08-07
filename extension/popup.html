@@ -191,6 +191,44 @@
       color: #999;
       text-align: center;
     }
+    
+    .advanced-section {
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    
+    .cache-clear-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .manual-cache-button {
+      padding: 4px 8px;
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 10px;
+      transition: background-color 0.2s;
+      white-space: nowrap;
+    }
+    
+    .manual-cache-button:hover {
+      background-color: #e63939;
+    }
+    
+    .manual-cache-button:active {
+      background-color: #cc2e2e;
+    }
+    
+    .manual-cache-button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -234,8 +272,25 @@
     </div>
     
     <div class="url-section">
-      <button class="url-button" id="configureUrls">Configure URL List</button>
-      <div class="url-count" id="urlCount">0 URLs configured</div>
+      <button class="url-button" id="configureUrls">Configure Domain List</button>
+      <div class="url-count" id="urlCount">0 domains configured</div>
+    </div>
+    
+    <div class="advanced-section">
+      <div class="mode-label">Advanced Options:</div>
+      <div class="radio-option" style="margin-top: 5px;">
+        <input type="checkbox" id="periodicCacheClearing">
+        <label for="periodicCacheClearing" style="font-size: 11px; color: #666; cursor: pointer;">
+          Periodic cache clearing (affects all sites)
+        </label>
+      </div>
+      <div class="cache-clear-container">
+        <button class="manual-cache-button" id="manualCacheClear">Clear Cache Now</button>
+        <span style="font-size: 10px; color: #999;">Manual cache clear (all sites)</span>
+      </div>
+      <div style="font-size: 10px; color: #999; margin-top: 3px; line-height: 1.2;">
+        When enabled, clears browser cache every 5 seconds. This affects all websites, not just configured domains.
+      </div>
     </div>
   </div>
   

@@ -192,6 +192,11 @@
     <br>
     <strong>Note:</strong> Only domain names are matched. Ports are ignored, so "localhost" will match localhost:3000, localhost:8080, etc.
   </div>
+  
+  <div class="info">
+    <strong>Cache Clearing Methods:</strong> The extension primarily uses HTTP headers to prevent caching. 
+    For additional cache clearing that affects all sites (not just configured domains), enable "Periodic cache clearing" in the main popup.
+  </div>
 
   <div class="domain-list" id="domainList">
     <div class="empty-message">No domains configured</div>

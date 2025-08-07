@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const urlCount = document.getElementById('urlCount');
   const modeRadios = document.querySelectorAll('input[name="mode"]');
   const pageStatus = document.getElementById('pageStatus');
+  const periodicCacheClearingCheckbox = document.getElementById('periodicCacheClearing');
+  const manualCacheClearButton = document.getElementById('manualCacheClear');
   
   // Load extension version and populate footer
   try {
@@ -33,19 +35,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const result = await chrome.storage.local.get([
     'cacheKillerEnabled', 
     'cacheKillerMode', 
-    'cacheKillerDomains'
+    'cacheKillerDomains',
+    'periodicCacheClearing'
   ]);
   
   const isEnabled = result.cacheKillerEnabled || false;
   const mode = result.cacheKillerMode || 'all';
   const domains = result.cacheKillerDomains || [];
+  const periodicClearing = result.periodicCacheClearing || false;
   
-  debugLog('Popup loaded with state:', { isEnabled, mode, domains });
+  debugLog('Popup loaded with state:', { isEnabled, mode, domains, periodicClearing });
   
   // Update UI
   toggleSwitch.checked = isEnabled;
   updateStatus(isEnabled);
   updateDomainCount(domains.length);
+  periodicCacheClearingCheckbox.checked = periodicClearing;
   
   // Set mode radio button
   const selectedModeRadio = document.querySelector(`input[name="mode"][value="${mode}"]`);
@@ -80,6 +85,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Update page status when mode changes
       setTimeout(updatePageStatus, 100);
     });
+  });
+  
+  // Handle periodic cache clearing checkbox
+  periodicCacheClearingCheckbox.addEventListener('change', async (event) => {
+    const enabled = event.target.checked;
+    await chrome.storage.local.set({ periodicCacheClearing: enabled });
+    debugLog('Periodic cache clearing set to:', enabled);
+  });
+  
+  // Handle manual cache clear button
+  manualCacheClearButton.addEventListener('click', async () => {
+    try {
+      manualCacheClearButton.disabled = true;
+      manualCacheClearButton.textContent = 'Clearing...';
+      
+      // Send message to background script to clear cache
+      await chrome.runtime.sendMessage({ action: 'clearCacheNow' });
+      
+      manualCacheClearButton.textContent = 'Cleared!';
+      setTimeout(() => {
+        manualCacheClearButton.textContent = 'Clear Cache Now';
+        manualCacheClearButton.disabled = false;
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error clearing cache manually:', error);
+      manualCacheClearButton.textContent = 'Error';
+      setTimeout(() => {
+        manualCacheClearButton.textContent = 'Clear Cache Now';
+        manualCacheClearButton.disabled = false;
+      }, 1500);
+    }
   });
   
   // Handle URL configuration button
@@ -140,7 +177,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       debugLog('Received response from background:', response);
       
       if (response.isActive) {
-        pageStatus.textContent = 'Cache killer is active on this page';
+        // Provide specific reason why cache killer is active
+        let reason = '';
+        if (response.mode === 'all') {
+          reason = ' (all sites mode)';
+        } else if (response.mode === 'inclusive') {
+          reason = ' (in include list)';
+        } else if (response.mode === 'exclusive') {
+          reason = ' (not in exclude list)';
+        }
+        pageStatus.textContent = `Cache killer is active on this page${reason}`;
         pageStatus.className = 'page-status active';
       } else if (response.isEnabled) {
         // Extension is on but not affecting this page
