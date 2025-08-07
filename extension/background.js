@@ -2,7 +2,7 @@
 // Copyright (c) 2025 @thejjw
 
 // Background script for Cache Killer extension
-const DEBUG = true; // Set to false to disable debug logs
+const DEBUG = false; // Set to false to disable debug logs
 
 let isEnabled = false;
 let mode = 'all';

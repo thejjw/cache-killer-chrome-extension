@@ -2,7 +2,7 @@
 // Copyright (c) 2025 @thejjw
 
 // Popup script for Cache Killer extension
-const DEBUG = true; // Set to false to disable debug logs
+const DEBUG = false; // Set to false to disable debug logs
 
 function debugLog(...args) {
   if (DEBUG) {
@@ -70,18 +70,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateStatus(enabled);
     updateModeSection(enabled);
     updatePageStatus();
-    
-    // Get active tab and reload it if cache killer is enabled
-    if (enabled) {
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab) {
-          chrome.tabs.reload(tab.id, { bypassCache: true });
-        }
-      } catch (error) {
-        console.error('Error reloading tab:', error);
-      }
-    }
   });
   
   // Handle mode changes

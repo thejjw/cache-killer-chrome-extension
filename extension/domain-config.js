@@ -2,7 +2,7 @@
 // Copyright (c) 2025 @thejjw
 
 // Domain configuration script
-const DEBUG = true; // Set to false to disable debug logs
+const DEBUG = false; // Set to false to disable debug logs
 
 function debugLog(...args) {
   if (DEBUG) {
