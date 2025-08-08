@@ -9,6 +9,8 @@ let mode = 'all';
 let domains = [];
 let periodicCacheClearing = false;
 let wildcardFallbackAllCache = false;
+let periodicCacheTimeMinutes = 5; // Default 5 minutes for periodic clearing
+let manualCacheTimeHours = 24; // Default 24 hours for manual clearing
 
 // Rule ID for declarativeNetRequest
 const CACHE_KILLER_RULE_ID = 1;
@@ -28,7 +30,9 @@ chrome.runtime.onInstalled.addListener(() => {
     cacheKillerMode: 'all',
     cacheKillerDomains: [],
     periodicCacheClearing: false,
-    wildcardFallbackAllCache: false
+    wildcardFallbackAllCache: false,
+    periodicCacheTimeMinutes: 5,
+    manualCacheTimeHours: 24
   });
   updateIcon(false);
 });
@@ -86,18 +90,30 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
       wildcardFallbackAllCache = changes.wildcardFallbackAllCache.newValue;
       debugLog('Wildcard fallback to all cache changed to:', wildcardFallbackAllCache);
     }
+
+    if (changes.periodicCacheTimeMinutes) {
+      periodicCacheTimeMinutes = changes.periodicCacheTimeMinutes.newValue;
+      debugLog('Periodic cache time changed to:', periodicCacheTimeMinutes, 'minutes');
+    }
+
+    if (changes.manualCacheTimeHours) {
+      manualCacheTimeHours = changes.manualCacheTimeHours.newValue;
+      debugLog('Manual cache time changed to:', manualCacheTimeHours, 'hours');
+    }
   }
 });
 
 // Load initial state
-chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains', 'periodicCacheClearing', 'wildcardFallbackAllCache'], (result) => {
+chrome.storage.local.get(['cacheKillerEnabled', 'cacheKillerMode', 'cacheKillerDomains', 'periodicCacheClearing', 'wildcardFallbackAllCache', 'periodicCacheTimeMinutes', 'manualCacheTimeHours'], (result) => {
   isEnabled = result.cacheKillerEnabled || false;
   mode = result.cacheKillerMode || 'all';
   domains = result.cacheKillerDomains || [];
   periodicCacheClearing = result.periodicCacheClearing || false;
   wildcardFallbackAllCache = result.wildcardFallbackAllCache || false;
+  periodicCacheTimeMinutes = result.periodicCacheTimeMinutes || 5;
+  manualCacheTimeHours = result.manualCacheTimeHours || 24;
   
-  debugLog('Initial state loaded:', { isEnabled, mode, domains, periodicCacheClearing, wildcardFallbackAllCache });
+  debugLog('Initial state loaded:', { isEnabled, mode, domains, periodicCacheClearing, wildcardFallbackAllCache, periodicCacheTimeMinutes, manualCacheTimeHours });
   
   updateIcon(isEnabled);
   
@@ -286,7 +302,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(response);
   } else if (request.action === 'clearCacheNow') {
     console.log('[Cache Killer] Manual cache clear requested');
-    const timeRange = { since: Date.now() - 1000 * 60 * 60 * 24 }; // Clear last 24 hours for manual clear
+    const timeRange = { since: Date.now() - 1000 * 60 * 60 * manualCacheTimeHours }; // Configurable time range for manual clear
     
     if (mode === 'all') {
       chrome.browsingData.removeCache(timeRange).then(() => {
@@ -300,23 +316,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       clearCacheForDomainsManual(domains, timeRange, sendResponse);
     } else if (mode === 'exclusive' && domains.length > 0) {
       chrome.browsingData.removeCache(timeRange).then(() => {
-        console.log('[Cache Killer] Manual cache clear completed successfully (exclusive mode)');
+        console.log('[Cache Killer] Manual cache clear completed successfully (exclusive mode - clearing all)');
         sendResponse({ success: true });
       }).catch((error) => {
         console.error('[Cache Killer] Manual cache clear failed (exclusive mode):', error);
         sendResponse({ success: false, error: error.message });
       });
     } else {
-      // Fallback to clearing all cache
-      chrome.browsingData.removeCache(timeRange).then(() => {
-        console.log('[Cache Killer] Manual cache clear completed successfully (fallback)');
-        sendResponse({ success: true });
-      }).catch((error) => {
-        console.error('[Cache Killer] Manual cache clear failed (fallback):', error);
-        sendResponse({ success: false, error: error.message });
-      });
+      sendResponse({ success: true, message: 'No cache clearing needed (no domains configured)' });
     }
-    return true; // Will respond asynchronously
+    return true; // Keep message channel open for async response
+  } else if (request.action === 'resetAllSettings') {
+    console.log('[Cache Killer] Reset all settings requested');
+    
+    // Reset to default values
+    const defaultSettings = {
+      cacheKillerEnabled: false,
+      cacheKillerMode: 'all',
+      cacheKillerDomains: [],
+      periodicCacheClearing: false,
+      wildcardFallbackAllCache: false,
+      periodicCacheTimeMinutes: 5,
+      manualCacheTimeHours: 24
+    };
+    
+    chrome.storage.local.set(defaultSettings).then(() => {
+      console.log('[Cache Killer] All settings reset to defaults');
+      sendResponse({ success: true });
+    }).catch((error) => {
+      console.error('[Cache Killer] Failed to reset settings:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    
+    return true; // Keep message channel open for async response
   }
 });
 
@@ -408,7 +440,7 @@ function stopCacheClearing() {
 }
 
 function clearCacheByMode() {
-  const timeRange = { since: Date.now() - 1000 * 60 * 5 }; // Last 5 minutes
+  const timeRange = { since: Date.now() - 1000 * 60 * periodicCacheTimeMinutes }; // Configurable time range for periodic clearing
   
   if (mode === 'all') {
     // Clear all cache

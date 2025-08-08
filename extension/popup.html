@@ -229,6 +229,31 @@
       background-color: #ccc;
       cursor: not-allowed;
     }
+    
+    .reset-button:hover {
+      background-color: #c82333;
+    }
+    
+    .reset-button:active {
+      background-color: #bd2130;
+    }
+    
+    .mode-label.clickable {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .mode-label.clickable:hover {
+      color: #555;
+    }
+    
+    .advanced-content, .expert-settings {
+      transition: all 0.2s ease-in-out;
+    }
+    
+    .toggle-icon {
+      transition: transform 0.2s ease-in-out;
+    }
   </style>
 </head>
 <body>
@@ -249,7 +274,7 @@
   </div>
   
   <div class="info">
-    When enabled, pages will always load fresh content from the server instead of using cached versions.
+    When enabled, pages will always load fresh content from the server by modifying request headers to prevent caching.
   </div>
   
   <div class="mode-section">
@@ -277,24 +302,59 @@
     </div>
     
     <div class="advanced-section">
-      <div class="mode-label">Advanced Options:</div>
-      <div class="radio-option" style="margin-top: 5px;">
-        <input type="checkbox" id="periodicCacheClearing">
-        <label for="periodicCacheClearing" style="font-size: 11px; color: #666; cursor: pointer;">
-          Periodic cache clearing
-        </label>
+      <div class="mode-label clickable" id="advancedOptionsToggle" title="Click to show/hide advanced cache clearing options">
+        <span>Advanced Cache Options</span> <span id="toggleIcon" style="font-size: 10px; color: #666;">▼</span>
       </div>
-      <div class="radio-option" style="margin-top: 5px;">
-        <input type="checkbox" id="wildcardFallbackAllCache">
-        <label for="wildcardFallbackAllCache" style="font-size: 11px; color: #666; cursor: pointer;">
-          Change behavior to clear all cache for wildcards (e.g., *.example.com)
-        </label>
-      </div>
-      <div class="cache-clear-container">
-        <button class="manual-cache-button" id="manualCacheClear">Clear Cache Now</button>
-      </div>
-      <div style="font-size: 10px; color: #999; margin-top: 3px; line-height: 1.2;">
-        ℹ️ Periodic clearing with wildcard fallback: by default, wildcard patterns (*.domain.com) skip cache clearing to avoid affecting all sites.
+      
+      <div class="advanced-content" id="advancedContent" style="display: none;">
+        <div style="font-size: 10px; color: #888; margin: 5px 0; line-height: 1.3;">
+          ℹ️ Primary cache prevention uses request headers (should work always). These are optional cache clearing features.
+        </div>
+        
+        <div class="radio-option" style="margin-top: 8px;">
+          <input type="checkbox" id="periodicCacheClearing">
+          <label for="periodicCacheClearing" style="font-size: 11px; color: #666; cursor: pointer;">
+            Periodic cache clearing
+          </label>
+        </div>
+        <div class="radio-option" style="margin-top: 5px;">
+          <input type="checkbox" id="wildcardFallbackAllCache">
+          <label for="wildcardFallbackAllCache" style="font-size: 11px; color: #666; cursor: pointer;">
+            Change behavior to clear all cache for wildcard cases (e.g., *.example.com)
+          </label>
+        </div>
+        <div class="cache-clear-container">
+          <button class="manual-cache-button" id="manualCacheClear">Clear Cache Now</button>
+          <span style="font-size: 10px; color: #999;">Manual cache clear</span>
+        </div>
+        <div style="font-size: 10px; color: #999; margin-top: 3px; line-height: 1.2;">
+          ℹ️ Periodic clearing with wildcard fallback: by default, wildcard patterns (*.domain.com) skip cache clearing to avoid affecting all sites.
+        </div>
+        
+        <!-- Expert Settings -->
+        <div style="border-top: 1px dashed #ccc; margin-top: 10px; padding-top: 8px;">
+          <div style="font-size: 10px; color: #888; margin-bottom: 5px;">Expert Settings:</div>
+          
+          <div style="display: flex; align-items: center; gap: 5px; margin: 5px 0 3px 0;">
+            <label for="periodicCacheTime" style="font-size: 9px; color: #666; min-width: 80px;">Periodic time:</label>
+            <input type="number" id="periodicCacheTime" min="1" max="60" value="5" style="width: 40px; font-size: 9px; padding: 1px 3px;">
+            <span style="font-size: 9px; color: #888;">min</span>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+            <label for="manualCacheTime" style="font-size: 9px; color: #666; min-width: 80px;">Manual time:</label>
+            <input type="number" id="manualCacheTime" min="1" max="168" value="24" style="width: 40px; font-size: 9px; padding: 1px 3px;">
+            <span style="font-size: 9px; color: #888;">hrs</span>
+          </div>
+          
+          <button class="reset-button" id="resetAllSettings" style="padding: 3px 8px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 9px; margin-top: 3px;">
+            Reset All Settings
+          </button>
+          
+          <div style="font-size: 8px; color: #999; margin-top: 3px; line-height: 1.2;">
+            Time ranges control how far back cache is cleared. Lower values = better performance.
+          </div>
+        </div>
       </div>
     </div>
   </div>

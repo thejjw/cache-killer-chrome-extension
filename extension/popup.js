@@ -20,6 +20,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const periodicCacheClearingCheckbox = document.getElementById('periodicCacheClearing');
   const manualCacheClearButton = document.getElementById('manualCacheClear');
   const wildcardFallbackCheckbox = document.getElementById('wildcardFallbackAllCache');
+  const advancedOptionsToggle = document.getElementById('advancedOptionsToggle');
+  const advancedContent = document.getElementById('advancedContent');
+  const toggleIcon = document.getElementById('toggleIcon');
+  const periodicCacheTimeInput = document.getElementById('periodicCacheTime');
+  const manualCacheTimeInput = document.getElementById('manualCacheTime');
+  const resetAllSettingsButton = document.getElementById('resetAllSettings');
   
   // Load extension version and populate footer
   try {
@@ -38,7 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     'cacheKillerMode', 
     'cacheKillerDomains',
     'periodicCacheClearing',
-    'wildcardFallbackAllCache'
+    'wildcardFallbackAllCache',
+    'periodicCacheTimeMinutes',
+    'manualCacheTimeHours'
   ]);
   
   const isEnabled = result.cacheKillerEnabled || false;
@@ -46,8 +54,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const domains = result.cacheKillerDomains || [];
   const periodicClearing = result.periodicCacheClearing || false;
   const wildcardFallback = result.wildcardFallbackAllCache || false;
+  const periodicCacheTime = result.periodicCacheTimeMinutes || 5;
+  const manualCacheTime = result.manualCacheTimeHours || 24;
   
-  debugLog('Popup loaded with state:', { isEnabled, mode, domains, periodicClearing, wildcardFallback });
+  debugLog('Popup loaded with state:', { isEnabled, mode, domains, periodicClearing, wildcardFallback, periodicCacheTime, manualCacheTime });
   
   // Update UI
   toggleSwitch.checked = isEnabled;
@@ -55,6 +65,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateDomainCount(domains.length);
   periodicCacheClearingCheckbox.checked = periodicClearing;
   wildcardFallbackCheckbox.checked = wildcardFallback;
+  periodicCacheTimeInput.value = periodicCacheTime;
+  manualCacheTimeInput.value = manualCacheTime;
   
   // Set mode radio button
   const selectedModeRadio = document.querySelector(`input[name="mode"][value="${mode}"]`);
@@ -145,6 +157,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (namespace === 'local' && changes.cacheKillerDomains) {
       const newDomains = changes.cacheKillerDomains.newValue || [];
       updateDomainCount(newDomains.length);
+    }
+  });
+  
+  // Handle click on Advanced Cache Options to toggle main advanced section
+  advancedOptionsToggle.addEventListener('click', () => {
+    const isHidden = advancedContent.style.display === 'none';
+    advancedContent.style.display = isHidden ? 'block' : 'none';
+    toggleIcon.textContent = isHidden ? '▲' : '▼';
+  });
+  
+  // Handle time range changes
+  periodicCacheTimeInput.addEventListener('change', async (event) => {
+    const value = parseInt(event.target.value);
+    if (value >= 1 && value <= 60) {
+      await chrome.storage.local.set({ periodicCacheTimeMinutes: value });
+    } else {
+      event.target.value = periodicCacheTime; // Revert to previous value
+    }
+  });
+  
+  manualCacheTimeInput.addEventListener('change', async (event) => {
+    const value = parseInt(event.target.value);
+    if (value >= 1 && value <= 168) {
+      await chrome.storage.local.set({ manualCacheTimeHours: value });
+    } else {
+      event.target.value = manualCacheTime; // Revert to previous value
+    }
+  });
+  
+  // Handle reset all settings
+  resetAllSettingsButton.addEventListener('click', async () => {
+    if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'resetAllSettings'
+        });
+        
+        if (response.success) {
+          // Reload the popup to reflect changes
+          window.location.reload();
+        } else {
+          alert('Failed to reset settings: ' + (response.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error resetting settings:', error);
+        alert('Failed to reset settings.');
+      }
     }
   });
   
