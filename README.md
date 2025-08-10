@@ -28,7 +28,7 @@ The extension uses two main approaches to disable caching:
    - `Pragma: no-cache`
    - `Expires: 0`
 
-2. **Periodic Cache Clearing** (Optional): When enabled in advanced settings, automatically clears browser cache every 5 seconds. **Note**: This method affects all websites regardless of your domain configuration, as the Chrome API doesn't support domain-specific cache clearing.
+2. **Periodic Cache Clearing** (Optional): When enabled in advanced settings, automatically clears browser cache every 5 seconds. **Note**: This method has some limitations when targetting domains with wildcard patterns. Use with caution.
 
 ## Installation
 
