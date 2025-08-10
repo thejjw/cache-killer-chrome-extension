@@ -47,6 +47,9 @@ The extension uses two main approaches to disable caching:
 3. Click "Pack Extension" to create a `.crx` file
 4. Install the `.crx` file by dragging it to the extensions page
 
+**Alternatively, install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jhpfoicanffigcjoogcgihhjikmcpopf)**  
+_(Note: The Chrome Web Store version may not always have the latest updates.)_
+
 ## Usage
 
 1. **Click the extension icon** in the toolbar to toggle on/off
