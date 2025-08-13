@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const periodicCacheTimeInput = document.getElementById('periodicCacheTime');
   const manualCacheTimeInput = document.getElementById('manualCacheTime');
   const resetAllSettingsButton = document.getElementById('resetAllSettings');
+  const currentDomainInfo = document.getElementById('currentDomainInfo');
+  const currentDomainSpan = document.getElementById('currentDomain');
   
   // Load extension version and populate footer
   try {
@@ -238,6 +240,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       debugLog('Checking page status for tab:', tab.url);
       
+      // Update current domain info
+      updateCurrentDomainInfo(tab.url);
+      
       // Ask background script about current page status
       const response = await chrome.runtime.sendMessage({
         action: 'checkPageStatus',
@@ -277,6 +282,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       debugLog('Error checking page status:', error);
       pageStatus.textContent = 'Cannot determine page status';
       pageStatus.className = 'page-status inactive';
+    }
+  }
+  
+  function updateCurrentDomainInfo(url) {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
+      
+      // Only show for http/https URLs
+      if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+        currentDomainSpan.textContent = hostname;
+        currentDomainInfo.style.display = 'block';
+      } else {
+        currentDomainInfo.style.display = 'none';
+      }
+    } catch (error) {
+      debugLog('Error parsing URL for domain info:', error);
+      currentDomainInfo.style.display = 'none';
     }
   }
 });
