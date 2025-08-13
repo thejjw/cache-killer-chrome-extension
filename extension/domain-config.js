@@ -24,6 +24,49 @@ function isValidDomain(domain) {
     domain = domain.substring(2); // Remove *. prefix for validation
   }
   
+  // Check if it's an IPv4 address
+  if (isValidIPv4(domain)) {
+    // IP addresses cannot have wildcards
+    if (isWildcard) return false;
+    return true;
+  }
+  
+  // Check if it's an IPv6 address
+  if (isValidIPv6(domain)) {
+    // IP addresses cannot have wildcards
+    if (isWildcard) return false;
+    return true;
+  }
+  
+  // Validate as domain name
+  return isValidDomainName(domain);
+}
+
+// IPv4 validation (0.0.0.0 to 255.255.255.255)
+function isValidIPv4(ip) {
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const match = ip.match(ipv4Regex);
+  
+  if (!match) return false;
+  
+  // Check each octet is 0-255
+  for (let i = 1; i <= 4; i++) {
+    const octet = parseInt(match[i], 10);
+    if (octet < 0 || octet > 255) return false;
+  }
+  
+  return true;
+}
+
+// IPv6 validation (basic check)
+function isValidIPv6(ip) {
+  // Basic IPv6 regex - covers most common formats
+  const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
+  return ipv6Regex.test(ip);
+}
+
+// Domain name validation (original logic)
+function isValidDomainName(domain) {
   // Basic domain format checks
   // Domain length: 1-253 characters (RFC 1035)
   if (domain.length < 1 || domain.length > 253) return false;
