@@ -145,6 +145,38 @@
       background-color: #e0e0e0;
     }
 
+    .import-export-section {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0 10px 0;
+      justify-content: center;
+    }
+    
+    .import-button, .export-button {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f5f5f5;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background-color 0.2s;
+      color: #333;
+    }
+    
+    .import-button:hover {
+      background-color: #e8f4f8;
+      border-color: #4a9eff;
+    }
+    
+    .export-button:hover {
+      background-color: #f0f8e8;
+      border-color: #4caf50;
+    }
+    
+    .import-button:active, .export-button:active {
+      transform: translateY(1px);
+    }
+
     .examples {
       font-size: 11px;
       color: #888;
@@ -213,6 +245,12 @@
 
   <div class="domain-list" id="domainList">
     <div class="empty-message">No domains configured</div>
+  </div>
+
+  <div class="import-export-section">
+    <button class="import-button" id="importButton">Import from File</button>
+    <button class="export-button" id="exportButton">Export to File</button>
+    <input type="file" id="importFileInput" accept=".txt" style="display: none;">
   </div>
 
   <div class="actions">
