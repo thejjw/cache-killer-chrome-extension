@@ -214,12 +214,12 @@
   <div class="header">Configure Domain List</div>
 
   <div class="description">
-    Add domains to include or exclude from cache killing. <strong>Exact domain names are recommended</strong> for full feature support. Wildcards (*) work but may limit some optional cache clearing features.
+    Add domains or IP addresses to include or exclude from cache killing. <strong>Exact domain names and IP addresses are recommended</strong> for full feature support. Wildcards (*) work but may limit some optional cache clearing features.
   </div>
 
   <div class="input-section">
     <label for="domainInput">Add Domain:</label>
-    <input type="text" id="domainInput" class="domain-input" placeholder="e.g., example.com, localhost (exact domains recommended)">
+    <input type="text" id="domainInput" class="domain-input" placeholder="e.g., example.com, 192.168.1.100, localhost">
     <button class="add-button" id="addButton">Add Domain</button>
   </div>
 
@@ -227,13 +227,15 @@
     <strong>Examples:</strong><br>
     • example.com - Exact domain match ✅ <em>Recommended</em><br>
     • localhost - Local development (matches all ports: localhost:3000, localhost:8080, etc.) ✅<br>
+    • 192.168.1.100 - IPv4 address ✅<br>
+    • ::1 - IPv6 localhost ✅<br>
     • google.com - Exact match for google.com ✅<br>
     • *.wikipedia.org - All Wikipedia subdomains ⚠️ <em>Limited cache clearing</em><br>
     • *.google.com - All Google subdomains ⚠️ <em>Limited cache clearing</em><br>
     <br>
     <strong>⚠️ Wildcard Limitations:</strong> Wildcard patterns (*.domain.com) work fine for header modification but limit optional cache clearing functionality. If you enable periodic cache clearing, wildcards may cause it to affect ALL websites or be skipped entirely. Use exact domains when possible for better control over cache clearing features.
     <br><br>
-    <strong>Note:</strong> Only domain names are matched. Ports are ignored, so "localhost" will match localhost:3000, localhost:8080, etc.
+    <strong>Note:</strong> Only domain names and IP addresses are matched. Ports are ignored, so "localhost" will match localhost:3000, localhost:8080, etc.
   </div>
   
   <div class="info">
